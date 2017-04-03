@@ -1,0 +1,17 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/open.png</file>
+        <file>icons/fileopen.png</file>
+        <file>icons/exit.png</file>
+        <file>icons/cut.png</file>
+        <file>icons/Zoom-Out-icon.png</file>
+        <file>icons/Zoom-In-icon.png</file>
+        <file>icons/blue-circle.png</file>
+        <file>icons/cyan-circle.png</file>
+        <file>icons/green-circle.png</file>
+        <file>icons/red-circle.png</file>
+        <file>icons/yellow-circle.png</file>
+        <file>icons/video.png</file>
+        <file>icons/compare-icon.png</file>
+    </qresource>
+</RCC>
