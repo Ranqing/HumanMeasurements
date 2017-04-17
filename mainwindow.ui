@@ -90,6 +90,7 @@
      <string>File</string>
     </property>
     <addaction name="actionOpen"/>
+    <addaction name="actionOpenMesh"/>
    </widget>
    <widget class="QMenu" name="menuExit">
     <property name="title">
@@ -103,7 +104,7 @@
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionOpen">
    <property name="icon">
-    <iconset resource="qtannotatorui.qrc">
+    <iconset>
      <normaloff>:/icons/open.png</normaloff>:/icons/open.png</iconset>
    </property>
    <property name="text">
@@ -115,6 +116,11 @@
     <string>Measures</string>
    </property>
   </action>
+  <action name="actionOpenMesh">
+   <property name="text">
+    <string>Open Mesh</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -123,8 +129,6 @@
    <header>QVTKWidget.h</header>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="qtannotatorui.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

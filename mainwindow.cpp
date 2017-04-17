@@ -8,8 +8,6 @@
 
 #include "../../Qing/qing_string.h"
 
-float sphere_radius = 1.0f;
-
 typedef pcl::visualization::PointCloudColorHandlerCustom<PointT> PointCloudColorHandlerCustom;
 typedef pcl::visualization::PointCloudColorHandlerRGBField<PointT> PointCloudColorHandlerRGB;
 
@@ -19,9 +17,11 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent),
     ui(new Ui::MainWindow),
     m_visualizer(new pcl::visualization::PCLVisualizer("PCL Visualizer", false)),
     m_pointcloud(new pcl::PointCloud<PointT>()),
-   // m_measured_points(new pcl::PointCloud<PointT>()),
+    m_mesh(new pcl::PolygonMesh),
+    // m_measured_points(new pcl::PointCloud<PointT>()),
     m_current_dir("."),
-    m_is_points_loaded(false)
+    m_is_points_loaded(false),
+    m_sphere_radius(1.0f)
 {
     ui->setupUi(this);
     this->setWindowTitle("Manual Measures");
@@ -33,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent),
     m_visualizer->getInteractorStyle()->setKeyboardModifier(pcl::visualization::INTERACTOR_KB_MOD_SHIFT);
     m_visualizer->setBackgroundColor(0.5, 0.5, 0.5);
     m_visualizer->addCoordinateSystem(1.0);
+    m_visualizer->initCameraParameters();
     ui->qvtkWidget->update();   //update to shown_
 
     m_visualizer->registerPointPickingCallback(&MainWindow::PointPickCallBack, * this);
@@ -40,10 +41,8 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent),
     //    m_visualizer->setBackgroundColor(0,0,0);
     //    m_visualizer->addCoordinateSystem(1.0);
     //    m_visualizer->registerKeyboardCallback(&MainWindow::keyboardEventOccurred, *this, 0);
-
-
-
     connect(ui->actionOpen, SIGNAL(triggered()), this, SLOT(actionOpen()));
+    connect(ui->actionOpenMesh, SIGNAL(triggered()), this, SLOT(actionOpenMesh()));
     connect(ui->CalculateButton, SIGNAL(clicked()), this, SLOT(buttonCalc()));
     connect(ui->SaveButton, SIGNAL(clicked()), this, SLOT(buttonSave()));
     connect(ui->UndoButton, SIGNAL(clicked()), this, SLOT(buttonUndo()));
@@ -91,6 +90,42 @@ void MainWindow::actionOpen() {
     }
 }
 
+void MainWindow::actionOpenMesh() {
+    QStringList  fileNameList = QFileDialog::getOpenFileNames(this, tr("Open File"), m_current_dir, tr("PLY file (*.ply);;VTK file (*.vtk)"));
+    QStringList::Iterator it = fileNameList.begin();
+    if(it != fileNameList.end() && !(*it).isEmpty()) {
+        QFileInfo fileInfo(*it);
+        m_current_dir = fileInfo.absoluteDir().absolutePath();
+    }
+
+    if(m_is_points_loaded == true) {
+        m_visualizer->removeAllPointClouds();
+        m_visualizer->removeAllShapes();
+        m_is_points_loaded = false;
+        m_measured_points.clear();
+    }
+
+    while(it != fileNameList.end()) {
+        if (!(*it).isEmpty())
+        {
+            m_pointcloud_name = (*it);
+            load_mesh(m_pointcloud_name.toStdString());
+            //if(m_mesh->polygons.size() != 0)
+            if(m_pointcloud->size() != 0)
+            {
+                m_is_points_loaded = true;
+                m_measured_points.clear();
+                show_pointcloud();
+               // show_mesh();
+            }
+        }
+        it++;
+
+    }
+
+
+}
+
 void MainWindow::PointPickCallBack(const pcl::visualization::PointPickingEvent &event, void *) {
     int idx = event.getPointIndex();
     if(-1==idx) {
@@ -104,7 +139,7 @@ void MainWindow::PointPickCallBack(const pcl::visualization::PointPickingEvent &
     m_measured_points.push_back(Eigen::Vector3d(pt.x, pt.y, pt.z));
     //m_visualizer->removeShape("point_src");
     string str = "point_" + qing_int_2_string(m_measured_points.size());
-    m_visualizer->addSphere(pt, sphere_radius, 1.0, 0.0, 0.0, str);
+    m_visualizer->addSphere(pt, m_sphere_radius, 1.0, 0.0, 0.0, str);
 }
 
 
@@ -115,19 +150,37 @@ void MainWindow::load_ply(string filename) {
     int size = m_pointcloud->size();
     cout << filename << '\t';
     cout << "Points size : " << size << endl;
+}
 
+void MainWindow::load_mesh(string filename) {
+    //m_mesh->reet (new pcl::PolygonMesh);
+    pcl::io::loadPolygonFilePLY(filename,*m_mesh);
+    cout << filename <<  '\t';
+    //    cout << "cloud size: " << m_mesh->cloud->size() << endl;
+    //m_pointcloud = m_mesh->cloud();
+    fromPCLPointCloud2(m_mesh->cloud, *m_pointcloud);
+    cout << "point size: " << m_pointcloud->size() << endl;
+    cout << "polygon size: " << m_mesh->polygons.size() << endl;
 }
 
 void MainWindow::show_pointcloud() {
-     pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb_handler(m_pointcloud);
-     m_visualizer->addPointCloud<PointT>(m_pointcloud, rgb_handler, "pointcloud");
-     Eigen::Vector4f centroid;
-     pcl::compute3DCentroid(*m_pointcloud, centroid);
+    pcl::visualization::PointCloudColorHandlerRGBField<PointT> rgb_handler(m_pointcloud);
+    m_visualizer->addPointCloud<PointT>(m_pointcloud, rgb_handler, "pointcloud");
+    Eigen::Vector4f centroid;
+    pcl::compute3DCentroid(*m_pointcloud, centroid);
+    cout << "centroid point: \n" << centroid << endl;
 
-     PointT min_pt, max_pt;
-     pcl::getMinMax3D(*m_pointcloud, min_pt, max_pt);
-     sphere_radius = ( max_pt.getVector3fMap() - min_pt.getVector3fMap() ).norm() / 1000;
-     m_visualizer->setCameraPosition(0, 0, 0, centroid(0), centroid(1), centroid(2), 0, 1, 0);
+    PointT min_pt, max_pt;
+    pcl::getMinMax3D(*m_pointcloud, min_pt, max_pt);
+    m_sphere_radius = ( max_pt.getVector3fMap() - min_pt.getVector3fMap() ).norm() / 1000;
+    cout << "sphere radius: " << m_sphere_radius << endl;
+    m_visualizer->setCameraPosition(0, 0, 0, centroid(0), centroid(1), centroid(2), 0, 1, 0);
+    ui->qvtkWidget->update ();
+}
+
+void MainWindow::show_mesh() {
+    m_visualizer->addPolygonMesh(*m_mesh,"mesh");
+    ui->qvtkWidget->update ();
 }
 
 double qing_eigen_vec3d_dis(Eigen::Vector3d p1, Eigen::Vector3d p2) {
